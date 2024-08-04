@@ -27,17 +27,18 @@ model_id = ""
 
 embedding = BedrockEmbeddings(client=bedrock_client,model_id=model_id)
 
-docs = get_docs()
-
-doc_search = FAISS.from_documents(docs,embedding)
-
-doc_search.save_local('faiss_vector_store')
 
 
-llm=Bedrock(
+def get_vector_store(docs):
+    doc_search = FAISS.from_documents(docs,embedding)
+
+    doc_search.save_local('faiss_vector_store')
+
+
+llm_bedrock =Bedrock(
     bedrock_client,
     model_id,
-    model_kwargs={'temperature':0.9}
+    model_kwargs={'max_gen_len':512}
 )
 
 prompt_template="""
@@ -70,3 +71,21 @@ def main():
     user_input = st.text_input("Ask a question")
 
     
+    with st.sidebar:
+        st.title("Update or Create Vector Database")
+
+        if st.button("Vector Update"):
+            with st.spinner("Processing..."):
+                docs = get_docs()
+                get_vector_store(docs)
+                st.success("Done")
+
+    if st.button("Send"):
+        with st.spinner("Processing..."):
+            faiss_index = FAISS.load_local("faiss_vector_store",embedding,allow_dangerous_deserialization=True)
+            st.write(get_response_llm(llm=llm_bedrock ,doc_search=faiss_index,query=user_input))
+
+        
+
+if __name__ =="__main__":
+    main()
